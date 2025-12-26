@@ -50,13 +50,13 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://*.vercel.app",
+        "https://lernova-attendsheets-mn.vercel.app",  # ✅ Your actual domain
+        "https://lernova-attendsheets-mn-git-main-nabeels-projects-bba4dd9d.vercel.app",  # ✅ Git branch domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # ==================== PYDANTIC MODELS ====================
 
 class SignupRequest(BaseModel):
