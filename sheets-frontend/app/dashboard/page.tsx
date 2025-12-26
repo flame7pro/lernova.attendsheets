@@ -499,28 +499,29 @@ export default function DashboardPage() {
 
   const handleDeleteColumn = (columnId: string) => {
     if (!activeClassId) return;
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? {
-          ...cls,
-          customColumns: cls.customColumns.filter(col => col.id !== columnId),
-          students: cls.students.map(student => {
-            const { [columnId]: _, ...rest } = student;
-            return rest as Student;
-          })
-        }
+            ...cls,
+            customColumns: cls.customColumns.filter(col => col.id !== columnId),
+            students: cls.students.map(student => {
+              const { [columnId]: _, ...rest } = student;
+              return rest as Student;
+            })
+          }
         : cls
     );
-
+  
     setClasses(updatedClasses.map(sanitizeClass));
-
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);  // ✅ ADD THIS
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);  // ✅ CHANGE THIS
     if (updatedClass) {
-      saveClass(sanitizeClass(updatedClass));
+      saveClass(updatedClass);  // ✅ NOW IT'S SANITIZED
     }
   };
-
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
