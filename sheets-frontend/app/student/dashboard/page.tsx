@@ -20,7 +20,7 @@ interface ClassDetails {
     name: string;
     rollNo: string;
     email: string;
-    attendance: Record<string, 'P' | 'A' | 'L' | undefined>;
+    attendance: Record<string, string>;  // ✅ Changed
   };
   statistics: {
     total_classes: number;
@@ -35,7 +35,22 @@ interface ClassDetails {
 export default function StudentDashboard() {
   const router = useRouter();
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
-
+  const sanitizeAttendance = (attendance: Record<string, string | undefined>): Record<string, string> => {
+  const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(attendance)) {
+      if (value !== undefined && value !== null) {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
+  };
+  const sanitizeClassDetails = (classDetails: any): ClassDetails => ({
+    ...classDetails,
+    student_record: {
+      ...classDetails.student_record,
+      attendance: sanitizeAttendance(classDetails.student_record?.attendance || {})
+    }
+  });
   const [classes, setClasses] = useState<ClassDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,10 +89,10 @@ export default function StudentDashboard() {
           'Authorization': `Bearer ${token}`
         }
       });
-
+  
       if (response.ok) {
         const data = await response.json();
-        setClasses(data.classes || []);
+        setClasses((data.classes || []).map(sanitizeClassDetails));  // ✅ CHANGED THIS LINE
       } else {
         setError('Failed to load classes');
       }
