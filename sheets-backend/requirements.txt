@@ -1,8 +1,9 @@
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
-sqlalchemy==2.0.25
-asyncpg==0.29.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+asyncpg==0.30.0
 python-dotenv==1.0.1
-pydantic[email]==2.6.1
-PyJWT==2.8.0
-python-multipart==0.0.9
+pydantic==2.10.5
+pydantic[email]
+PyJWT==2.10.1
+python-multipart==0.0.20
