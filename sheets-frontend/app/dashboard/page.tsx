@@ -24,7 +24,22 @@ import { QRAttendanceModal } from '../components/QRAttendanceModal';
 export default function DashboardPage() {
   const router = useRouter();
   const { user, logout, isAuthenticated, loading } = useAuth();
-
+  const sanitizeAttendance = (attendance: Record<string, string | undefined>): Record<string, string> => {
+  const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(attendance)) {
+      if (value !== undefined && value !== null) {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
+  };
+  const sanitizeClass = (cls: any): Class => ({
+    ...cls,
+    students: cls.students.map((student: any) => ({
+      ...student,
+      attendance: sanitizeAttendance(student.attendance || {})
+    }))
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [activeClassId, setActiveClassId] = useState<number | null>(null);
@@ -115,7 +130,7 @@ export default function DashboardPage() {
       const backendClasses = await classService.loadClasses();
 
       if (backendClasses.length > 0) {
-        setClasses(backendClasses);
+        setClasses(backendClasses.map(sanitizeClass));
         setShowSnapshot(true);
       } else {
         // Try loading from localStorage as fallback
@@ -164,7 +179,7 @@ export default function DashboardPage() {
       c.id === updatedClass.id ? updatedClass : c
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     // Save to localStorage immediately
     if (user) {
@@ -201,7 +216,7 @@ export default function DashboardPage() {
         ? { ...cls, thresholds: newThresholds }
         : cls
     );
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     // Sync each updated class
     updatedClasses.forEach(cls => {
@@ -235,7 +250,7 @@ export default function DashboardPage() {
     };
 
     const updatedClasses = [...classes, newClass];
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
     setActiveClassId(newClass.id);
     setShowImportState(false);
     setShowSnapshot(false);
@@ -260,7 +275,7 @@ export default function DashboardPage() {
     };
 
     const updatedClasses = [...classes, newClass];
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
     setActiveClassId(newClass.id);
     setShowImportState(false);
     setShowSnapshot(false);
@@ -293,7 +308,7 @@ export default function DashboardPage() {
     if (!classToDelete) return;
 
     const updatedClasses = classes.filter(c => c.id !== classToDelete.id);
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     // ✅ Update localStorage immediately
     if (user) {
@@ -334,7 +349,7 @@ export default function DashboardPage() {
     const updatedClasses = classes.map(cls =>
       cls.id === classId ? { ...cls, name: newName } : cls
     );
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     const updatedClass = updatedClasses.find(c => c.id === classId);
     if (updatedClass) {
@@ -358,7 +373,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     // Sync to backend
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
@@ -383,7 +398,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     // Debounced sync to backend
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
@@ -401,7 +416,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
@@ -447,7 +462,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
@@ -470,7 +485,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     setNewColumnLabel('');
     setNewColumnType('text');
@@ -498,7 +513,7 @@ export default function DashboardPage() {
         : cls
     );
 
-    setClasses(updatedClasses);
+    setClasses(updatedClasses.map(sanitizeClass));
 
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
