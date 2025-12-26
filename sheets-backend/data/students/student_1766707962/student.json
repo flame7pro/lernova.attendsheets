@@ -1,0 +1,18 @@
+{
+  "id": "student_1766707962",
+  "email": "nabeelkashmiri1998@gmail.com",
+  "name": "Rituraj",
+  "password": "9d92bcd28991e0e1a8d6305ad070c39876bfb587d31c82f34551dd4d38dd6756",
+  "created_at": "2025-12-26T05:42:42.938427",
+  "verified": true,
+  "role": "student",
+  "enrolled_classes": [
+    {
+      "class_id": "1766727830517",
+      "class_name": "French",
+      "teacher_name": "nabeel",
+      "enrolled_at": "2025-12-26T05:44:33.089491"
+    }
+  ],
+  "updated_at": "2025-12-26T05:44:33.101650"
+}

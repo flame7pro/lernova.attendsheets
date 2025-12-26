@@ -1,0 +1,15 @@
+{
+  "class_id": 1766727830517,
+  "teacher_id": "user_1766707955",
+  "started_at": "2025-12-26T11:15:51.278923",
+  "rotation_interval": 30,
+  "current_code": "37YN6DXH",
+  "code_generated_at": "2025-12-26T11:16:21.365270",
+  "scanned_students": [
+    1766708073089
+  ],
+  "attendance_date": "2025-12-26",
+  "status": "stopped",
+  "last_scan_at": "2025-12-26T05:46:16.854381",
+  "stopped_at": "2025-12-26T05:46:21.887870"
+}

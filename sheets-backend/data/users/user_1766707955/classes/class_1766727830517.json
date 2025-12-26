@@ -1,0 +1,26 @@
+{
+  "id": 1766727830517,
+  "name": "French",
+  "students": [
+    {
+      "id": 1766708073089,
+      "rollNo": "1",
+      "name": "Rituraj",
+      "email": "nabeelkashmiri1998@gmail.com",
+      "attendance": {
+        "2025-12-26": "P"
+      }
+    }
+  ],
+  "customColumns": [],
+  "thresholds": null,
+  "teacher_id": "user_1766707955",
+  "created_at": "2025-12-26T05:43:50.829176",
+  "updated_at": "2025-12-26T05:43:50.829205",
+  "statistics": {
+    "total_students": 0,
+    "avg_attendance": 0.0,
+    "at_risk_count": 0,
+    "excellent_count": 0
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "user_1766707955",
+  "email": "nabeelkashmiri7777@gmail.com",
+  "name": "nabeel",
+  "password": "9d92bcd28991e0e1a8d6305ad070c39876bfb587d31c82f34551dd4d38dd6756",
+  "created_at": "2025-12-26T05:42:35.123126",
+  "verified": true,
+  "role": "teacher",
+  "overview": {
+    "total_classes": 2,
+    "total_students": 1,
+    "last_updated": "2025-12-26T05:44:33.109287"
+  }
+}

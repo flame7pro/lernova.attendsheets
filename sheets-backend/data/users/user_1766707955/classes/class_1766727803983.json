@@ -1,0 +1,389 @@
+{
+  "id": 1766727803983,
+  "name": "Maths",
+  "students": [
+    {
+      "id": 1766727803478,
+      "name": "Aditya Vijay Singh",
+      "rollNo": "",
+      "attendance": {
+        "2025-12-5": "P"
+      },
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803479,
+      "name": "Aditya Patil Rane",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803480,
+      "name": "Anirudh Nilesh Kumar Modi",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803481,
+      "name": "Vanshika Pundlikar Rane",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803482,
+      "name": "Divyansh Anil Gavaskar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803483,
+      "name": "Atharv Suresh Mhashilkar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803484,
+      "name": "Hrushikesh Balkrishna",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803485,
+      "name": "Jitesh Mahendra Koli",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803486,
+      "name": "Sesha Gireeshan",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803487,
+      "name": "Shreya Devichandra Mengji",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803488,
+      "name": "Yogiraj Sanjay Pujare",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803489,
+      "name": "Aryan Stephen Raj",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803490,
+      "name": "Zaid Rizwan Shaikh",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803491,
+      "name": "Sarthak Bhaveshkumar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803492,
+      "name": "Nileshsingh Rathod",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803493,
+      "name": "Rudra Vijay Khare Patil",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803494,
+      "name": "Naail Sayyed",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803495,
+      "name": "Mitali Amol Rane",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803496,
+      "name": "Yash Rajendra Nimde",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803497,
+      "name": "Hitesh Shridhar Patil",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803498,
+      "name": "Vedant Khupkar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803499,
+      "name": "Sanika Nagaraj",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803500,
+      "name": "Koushal Ashok Chaudhary",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803501,
+      "name": "Riya mahendra more",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803502,
+      "name": "Alka Dilip Prajapati",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803503,
+      "name": "Pranav Suresh Ganga",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803504,
+      "name": "Muaz Juber Ahmad Tamboli",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803505,
+      "name": "Jiten Rakesh Adhangle",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803506,
+      "name": "Hitesh Rakesh Shidkar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803507,
+      "name": "Atharva Suresh Mhashilkar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803508,
+      "name": "Divya",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803509,
+      "name": "Yash Bhushan Rao",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803510,
+      "name": "ISHITA DEBNATH",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803511,
+      "name": "Shlok Manojkumar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AI&DS"
+    },
+    {
+      "id": 1766727803512,
+      "name": "Sathish kannan",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803513,
+      "name": "Pranav Anil Bhagwat",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803514,
+      "name": "Bhaumik Patil",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803515,
+      "name": "Harsha Hiraman",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803516,
+      "name": "Ritik Vijay Bagade",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803517,
+      "name": "Shweta Yadav",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803518,
+      "name": "Harshita Arun",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803519,
+      "name": "Shriyansh Vijay",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803520,
+      "name": "AAYUSH ASHISH KENY",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803521,
+      "name": "Arshdeep singh rathod",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803522,
+      "name": "Akash Suresh Devlapalli",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803523,
+      "name": "Ritik Kamalkar",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CE"
+    },
+    {
+      "id": 1766727803524,
+      "name": "Handwritten Students",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "---"
+    },
+    {
+      "id": 1766727803525,
+      "name": "Kartik Holkunde",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "IT"
+    },
+    {
+      "id": 1766727803526,
+      "name": "Vignesh Bagade",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "CSE-CY"
+    },
+    {
+      "id": 1766727803527,
+      "name": "Aditsa Singh",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "C.E."
+    },
+    {
+      "id": 1766727803528,
+      "name": "Zaid Shaikh",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    },
+    {
+      "id": 1766727803529,
+      "name": "Muthyala Spoorti Krishna",
+      "rollNo": "",
+      "attendance": {},
+      "col_1766727803478_0": "AIML"
+    }
+  ],
+  "customColumns": [
+    {
+      "id": "col_1766727803478_0",
+      "label": "Branch",
+      "type": "text"
+    }
+  ],
+  "thresholds": null,
+  "teacher_id": "user_1766707955",
+  "created_at": "2025-12-26T05:43:23.995166",
+  "updated_at": "2025-12-26T05:43:38.067451",
+  "statistics": {
+    "total_students": 0,
+    "avg_attendance": 0.0,
+    "at_risk_count": 0,
+    "excellent_count": 0
+  }
+}

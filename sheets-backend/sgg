@@ -1,0 +1,1409 @@
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+import jwt
+import hashlib
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import random
+import string
+from dotenv import load_dotenv
+import ssl
+import os
+
+from database import get_db, init_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update, delete, func, and_, or_
+from sqlalchemy.orm import selectinload
+from models import Teacher, Student, Class, Enrollment, StudentRecord, QRSession, ContactMessage
+
+load_dotenv()
+
+app = FastAPI(title="Lernova Attendsheets API")
+
+# Security
+security = HTTPBearer()
+
+# Configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+# Email Configuration
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USERNAME)
+
+# Temporary storage for verification codes (in production, use Redis)
+verification_codes = {}
+password_reset_codes = {}
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://*.vercel.app",  # Allow all Vercel deployments
+        # Add your production domain here
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ==================== PYDANTIC MODELS ====================
+
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    role: str = "teacher"
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class StudentEnrollmentRequest(BaseModel):
+    class_id: str
+    name: str
+    rollNo: str
+    email: EmailStr
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class VerifyResetCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+class UpdateProfileRequest(BaseModel):
+    name: str
+
+class ChangePasswordRequest(BaseModel):
+    code: str
+    new_password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    user: UserResponse
+
+class ClassRequest(BaseModel):
+    id: int
+    name: str
+    students: List[Dict[str, Any]]
+    customColumns: List[Dict[str, Any]]
+    thresholds: Optional[Dict[str, Any]] = None
+
+class ContactRequest(BaseModel):
+    name: str
+    email: EmailStr
+    subject: str
+    message: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+class QRSessionRequest(BaseModel):
+    class_id: str
+    rotation_interval: int = 5
+
+class ScanQRRequest(BaseModel):
+    qr_code: str
+    class_id: str
+
+# ==================== HELPER FUNCTIONS ====================
+
+def get_password_hash(password: str) -> str:
+    """Hash a password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return get_password_hash(plain_password) == hashed_password
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def generate_verification_code() -> str:
+    """Generate a 6-digit verification code"""
+    return ''.join(random.choices(string.digits, k=6))
+
+def send_verification_email(to_email: str, code: str, name: str):
+    """Send verification email"""
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "Verify Your Lernova Attendsheets Account"
+        msg['From'] = f"Lernova Attendsheets <{FROM_EMAIL}>"
+        msg['To'] = to_email
+
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Email Verification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #a8edea;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #a8edea 0%, #c2f5e9 100%); min-height: 100vh;">
+                <tr>
+                    <td style="padding: 40px 20px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                            
+                            <!-- Header Section -->
+                            <tr>
+                                <td style="background: linear-gradient(135deg, #16a085 0%, #2ecc71 100%); padding: 50px 40px; text-align: center;">
+                                    <!-- Icon -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="70" style="margin: 0 auto 20px; background: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
+                                        <tr>
+                                            <td style="padding: 15px; text-align: center;">
+                                                <img src="/logo.png" alt="Lernova Attendsheets Logo" width="40" height="40" />
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    <!-- Title -->
+                                    <h1 style="margin: 0 0 8px 0; color: white; font-size: 28px; font-weight: 600;">Lernova Attendsheets</h1>
+                                    <p style="margin: 0; color: white; font-size: 15px; opacity: 0.95;">Modern Attendance Management</p>
+                                </td>
+                            </tr>
+
+                            <!-- Content Section -->
+                            <tr>
+                                <td style="padding: 40px;">
+                                    <!-- Welcome Message -->
+                                    <h2 style="margin: 0 0 20px 0; color: #2c3e50; font-size: 26px; font-weight: 600;">Welcome, {name}! 👋</h2>
+                                    <p style="margin: 0 0 30px 0; color: #7f8c8d; font-size: 15px; line-height: 1.6;">
+                                        Thank you for signing up for Lernova Attendsheets. To complete your registration and start managing attendance, please verify your email address.
+                                    </p>
+
+                                    <!-- Code Section -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 25px; background: linear-gradient(135deg, #d4f1f4 0%, #c3f0d8 100%); border-radius: 16px;">
+                                        <tr>
+                                            <td style="padding: 30px; text-align: center;">
+                                                <p style="margin: 0 0 15px 0; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #16a085; text-transform: uppercase;">Your Verification Code</p>
+                                                
+                                                <!-- Code Box -->
+                                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: white; border-radius: 12px; margin-bottom: 15px;">
+                                                    <tr>
+                                                        <td style="padding: 20px; text-align: center;">
+                                                            <span style="font-size: 42px; font-weight: 700; letter-spacing: 14px; color: #16a085; font-family: 'Courier New', monospace;">{code}</span>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                                
+                                                <p style="margin: 0; font-size: 13px; color: #16a085;">This code will expire in 15 minutes</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <!-- Security Tip -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #16a085; border-radius: 8px;">
+                                        <tr>
+                                            <td style="padding: 15px 20px;">
+                                                <p style="margin: 0 0 5px 0; color: #2c3e50; font-size: 14px; font-weight: 600;">Security Tip:</p>
+                                                <p style="margin: 0; color: #7f8c8d; font-size: 13px; line-height: 1.5;">If you didn't create an account with Lernova Attendsheets, you can safely ignore this email.</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Footer Section -->
+                            <tr>
+                                <td style="padding: 30px 40px; text-align: center; border-top: 1px solid #ecf0f1;">
+                                    <p style="margin: 0 0 10px 0; color: #95a5a6; font-size: 14px;">
+                                        Need help? Contact us at <a href="mailto:support@attendsheets.com" style="color: #16a085; text-decoration: none; font-weight: 500;">support@attendsheets.com</a>
+                                    </p>
+                                    <p style="margin: 0; color: #95a5a6; font-size: 12px;">
+                                        © 2025 Lernova Attendsheets. All rights reserved.<br>
+                                        Built by students at Atharva University, Mumbai
+                                    </p>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
+        
+        part = MIMEText(html, 'html')
+        msg.attach(part)
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        
+        return True
+    except Exception as e:
+        print(f"Email sending failed: {e}")
+        return False
+
+def send_password_reset_email(to_email: str, code: str, name: str):
+    """Send password reset email"""
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "Reset Your Lernova Password"
+        msg['From'] = f"Lernova Attendsheets <{FROM_EMAIL}>"
+        msg['To'] = to_email
+
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #a8edea;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #a8edea 0%, #c2f5e9 100%); min-height: 100vh;">
+                <tr>
+                    <td style="padding: 40px 20px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                            
+                            <!-- Header Section -->
+                            <tr>
+                                <td style="background: linear-gradient(135deg, #16a085 0%, #2ecc71 100%); padding: 50px 40px; text-align: center;">
+                                    <!-- Icon -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="70" style="margin: 0 auto 20px; background: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
+                                        <tr>
+                                            <td style="padding: 15px; text-align: center;">
+                                                <img src="/logo.png" alt="Lernova Attendsheets Logo" width="40" height="40" />
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    <!-- Title -->
+                                    <h1 style="margin: 0 0 8px 0; color: white; font-size: 28px; font-weight: 600;">Password Reset</h1>
+                                    <p style="margin: 0; color: white; font-size: 15px; opacity: 0.95;">Lernova Attendsheets</p>
+                                </td>
+                            </tr>
+
+                            <!-- Content Section -->
+                            <tr>
+                                <td style="padding: 40px;">
+                                    <!-- Welcome Message -->
+                                    <h2 style="margin: 0 0 20px 0; color: #2c3e50; font-size: 26px; font-weight: 600;">Hi {name}, 🔒</h2>
+                                    <p style="margin: 0 0 30px 0; color: #7f8c8d; font-size: 15px; line-height: 1.6;">
+                                        We received a request to reset your password for your Lernova Attendsheets account. Use the verification code below to set a new password.
+                                    </p>
+
+                                    <!-- Code Section -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 25px; background: linear-gradient(135deg, #d4f1f4 0%, #c3f0d8 100%); border-radius: 16px;">
+                                        <tr>
+                                            <td style="padding: 30px; text-align: center;">
+                                                <p style="margin: 0 0 15px 0; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #16a085; text-transform: uppercase;">Your Password Reset Code</p>
+                                                
+                                                <!-- Code Box -->
+                                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: white; border-radius: 12px; margin-bottom: 15px;">
+                                                    <tr>
+                                                        <td style="padding: 20px; text-align: center;">
+                                                            <span style="font-size: 42px; font-weight: 700; letter-spacing: 14px; color: #16a085; font-family: 'Courier New', monospace;">{code}</span>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                                
+                                                <p style="margin: 0; font-size: 13px; color: #16a085;">This code will expire in 15 minutes</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <!-- Security Tip -->
+                                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 8px;">
+                                        <tr>
+                                            <td style="padding: 15px 20px;">
+                                                <p style="margin: 0 0 5px 0; color: #2c3e50; font-size: 14px; font-weight: 600;">Security Alert:</p>
+                                                <p style="margin: 0; color: #7f8c8d; font-size: 13px; line-height: 1.5;">If you didn't request a password reset, please ignore this email or contact support if you have concerns about your account security.</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Footer Section -->
+                            <tr>
+                                <td style="padding: 30px 40px; text-align: center; border-top: 1px solid #ecf0f1;">
+                                    <p style="margin: 0 0 10px 0; color: #95a5a6; font-size: 14px;">
+                                        Need help? Contact us at <a href="mailto:support@attendsheets.com" style="color: #16a085; text-decoration: none; font-weight: 500;">support@attendsheets.com</a>
+                                    </p>
+                                    <p style="margin: 0; color: #95a5a6; font-size: 12px;">
+                                        © 2025 Lernova Attendsheets. All rights reserved.<br>
+                                        Built by students at Atharva University, Mumbai
+                                    </p>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
+        
+        part = MIMEText(html, 'html')
+        msg.attach(part)
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        
+        return True
+    except Exception as e:
+        print(f"Email sending failed: {e}")
+        return False
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: AsyncSession = Depends(get_db)):
+    """Get current user from JWT token"""
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        role: str = payload.get("role")
+        
+        if email is None or role is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        
+        if role == "teacher":
+            result = await db.execute(select(Teacher).where(Teacher.email == email))
+            user = result.scalar_one_or_none()
+        elif role == "student":
+            result = await db.execute(select(Student).where(Student.email == email))
+            user = result.scalar_one_or_none()
+        else:
+            raise HTTPException(status_code=401, detail="Invalid role")
+        
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+async def update_teacher_overview(teacher_id: str, db: AsyncSession):
+    """Update teacher's overview statistics"""
+    result = await db.execute(
+        select(Class).where(Class.teacher_id == teacher_id)
+    )
+    classes = result.scalars().all()
+    
+    total_students = 0
+    for cls in classes:
+        enrollment_result = await db.execute(
+            select(func.count(Enrollment.id))
+            .where(Enrollment.class_id == cls.id)
+            .where(Enrollment.status == "active")
+        )
+        total_students += enrollment_result.scalar()
+    
+    await db.execute(
+        update(Teacher)
+        .where(Teacher.id == teacher_id)
+        .values(total_classes=len(classes), total_students=total_students)
+    )
+    await db.commit()
+
+# ==================== STARTUP EVENT ====================
+
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+
+# ==================== HEALTH CHECK ====================
+
+@app.get("/")
+async def root():
+    return {"message": "Lernova Attendsheets API", "status": "running"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+# ==================== AUTH ENDPOINTS ====================
+
+@app.post("/api/auth/signup", response_model=TokenResponse)
+async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
+    """Register a new user (teacher or student)"""
+    
+    if request.role == "teacher":
+        # Check if email already exists
+        result = await db.execute(select(Teacher).where(Teacher.email == request.email))
+        existing_user = result.scalar_one_or_none()
+        
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create new teacher
+        user_id = str(int(datetime.utcnow().timestamp() * 1000))
+        new_teacher = Teacher(
+            id=user_id,
+            email=request.email,
+            name=request.name,
+            password=get_password_hash(request.password),
+            role="teacher"
+        )
+        db.add(new_teacher)
+        await db.commit()
+        await db.refresh(new_teacher)
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": request.email, "role": "teacher"},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            user=UserResponse(id=new_teacher.id, email=new_teacher.email, name=new_teacher.name)
+        )
+    
+    elif request.role == "student":
+        # Check if email already exists
+        result = await db.execute(select(Student).where(Student.email == request.email))
+        existing_student = result.scalar_one_or_none()
+        
+        if existing_student:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create new student
+        student_id = str(int(datetime.utcnow().timestamp() * 1000))
+        new_student = Student(
+            id=student_id,
+            email=request.email,
+            name=request.name,
+            password=get_password_hash(request.password),
+            role="student"
+        )
+        db.add(new_student)
+        await db.commit()
+        await db.refresh(new_student)
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": request.email, "role": "student"},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            user=UserResponse(id=new_student.id, email=new_student.email, name=new_student.name)
+        )
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Login user"""
+    
+    # Try teacher first
+    result = await db.execute(select(Teacher).where(Teacher.email == request.email))
+    teacher = result.scalar_one_or_none()
+    
+    if teacher and verify_password(request.password, teacher.password):
+        access_token = create_access_token(
+            data={"sub": request.email, "role": "teacher"},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        return TokenResponse(
+            access_token=access_token,
+            user=UserResponse(id=teacher.id, email=teacher.email, name=teacher.name)
+        )
+    
+    # Try student
+    result = await db.execute(select(Student).where(Student.email == request.email))
+    student = result.scalar_one_or_none()
+    
+    if student and verify_password(request.password, student.password):
+        access_token = create_access_token(
+            data={"sub": request.email, "role": "student"},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        return TokenResponse(
+            access_token=access_token,
+            user=UserResponse(id=student.id, email=student.email, name=student.name)
+        )
+    
+    raise HTTPException(status_code=401, detail="Invalid email or password")
+
+@app.get("/api/auth/me")
+async def get_me(current_user=Depends(get_current_user)):
+    """Get current user info"""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role
+    }
+
+@app.post("/api/auth/request-password-reset")
+async def request_password_reset(request: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+    """Request password reset"""
+    
+    # Try teacher
+    result = await db.execute(select(Teacher).where(Teacher.email == request.email))
+    teacher = result.scalar_one_or_none()
+    
+    if teacher:
+        code = generate_verification_code()
+        password_reset_codes[request.email] = {
+            "code": code,
+            "expires": datetime.utcnow() + timedelta(minutes=10)
+        }
+        send_password_reset_email(request.email, code, teacher.name)
+        return {"message": "Password reset code sent to your email"}
+    
+    # Try student
+    result = await db.execute(select(Student).where(Student.email == request.email))
+    student = result.scalar_one_or_none()
+    
+    if student:
+        code = generate_verification_code()
+        password_reset_codes[request.email] = {
+            "code": code,
+            "expires": datetime.utcnow() + timedelta(minutes=10)
+        }
+        send_password_reset_email(request.email, code, student.name)
+        return {"message": "Password reset code sent to your email"}
+    
+    # Don't reveal if email exists
+    return {"message": "If the email exists, a reset code has been sent"}
+
+@app.post("/api/auth/verify-reset-code")
+async def verify_reset_code(request: VerifyResetCodeRequest, db: AsyncSession = Depends(get_db)):
+    """Verify reset code and change password"""
+    
+    if request.email not in password_reset_codes:
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
+    
+    stored_data = password_reset_codes[request.email]
+    
+    if stored_data["code"] != request.code:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    
+    if datetime.utcnow() > stored_data["expires"]:
+        del password_reset_codes[request.email]
+        raise HTTPException(status_code=400, detail="Code has expired")
+    
+    # Update password
+    new_password_hash = get_password_hash(request.new_password)
+    
+    # Try teacher
+    result = await db.execute(select(Teacher).where(Teacher.email == request.email))
+    teacher = result.scalar_one_or_none()
+    
+    if teacher:
+        await db.execute(
+            update(Teacher)
+            .where(Teacher.email == request.email)
+            .values(password=new_password_hash)
+        )
+        await db.commit()
+        del password_reset_codes[request.email]
+        return {"message": "Password updated successfully"}
+    
+    # Try student
+    result = await db.execute(select(Student).where(Student.email == request.email))
+    student = result.scalar_one_or_none()
+    
+    if student:
+        await db.execute(
+            update(Student)
+            .where(Student.email == request.email)
+            .values(password=new_password_hash)
+        )
+        await db.commit()
+        del password_reset_codes[request.email]
+        return {"message": "Password updated successfully"}
+    
+    raise HTTPException(status_code=404, detail="User not found")
+
+@app.put("/api/auth/profile")
+async def update_profile(request: UpdateProfileRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Update user profile"""
+    
+    if current_user.role == "teacher":
+        await db.execute(
+            update(Teacher)
+            .where(Teacher.id == current_user.id)
+            .values(name=request.name)
+        )
+    else:
+        await db.execute(
+            update(Student)
+            .where(Student.id == current_user.id)
+            .values(name=request.name)
+        )
+    
+    await db.commit()
+    return {"message": "Profile updated successfully"}
+
+@app.delete("/api/auth/account")
+async def delete_account(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Delete user account"""
+    
+    if current_user.role == "teacher":
+        await db.execute(delete(Teacher).where(Teacher.id == current_user.id))
+    else:
+        await db.execute(delete(Student).where(Student.id == current_user.id))
+    
+    await db.commit()
+    return {"message": "Account deleted successfully"}
+
+# ==================== CLASS ENDPOINTS ====================
+
+@app.get("/api/classes")
+async def get_classes(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get all classes for current teacher"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can access classes")
+    
+    result = await db.execute(
+        select(Class)
+        .where(Class.teacher_id == current_user.id)
+        .options(selectinload(Class.student_records))
+    )
+    classes = result.scalars().all()
+    
+    response_classes = []
+    for cls in classes:
+        # Get active enrollments
+        enrollment_result = await db.execute(
+            select(Enrollment)
+            .where(Enrollment.class_id == cls.id)
+            .where(Enrollment.status == "active")
+        )
+        active_enrollments = enrollment_result.scalars().all()
+        active_record_ids = {e.student_record_id for e in active_enrollments}
+        
+        # Filter to only active students
+        active_students = [
+            {
+                "id": sr.id,
+                "name": sr.name,
+                "rollNo": sr.roll_no,
+                "email": sr.email,
+                "attendance": sr.attendance or {}
+            }
+            for sr in cls.student_records
+            if sr.id in active_record_ids
+        ]
+        
+        # Calculate statistics
+        total_students = len(active_students)
+        thresholds = cls.thresholds or {
+            "excellent": 95.0,
+            "good": 90.0,
+            "moderate": 85.0,
+            "atRisk": 85.0
+        }
+        
+        at_risk = 0
+        excellent = 0
+        total_attendance = 0.0
+        
+        for student in active_students:
+            attendance = student["attendance"]
+            if attendance:
+                present = sum(1 for v in attendance.values() if v in ["P", "L"])
+                total = len(attendance)
+                percentage = (present / total * 100.0) if total > 0 else 0.0
+                total_attendance += percentage
+                
+                if percentage >= thresholds.get("excellent", 95.0):
+                    excellent += 1
+                elif percentage < thresholds.get("moderate", 85.0):
+                    at_risk += 1
+        
+        avg_attendance = (total_attendance / total_students) if total_students > 0 else 0.0
+        
+        response_classes.append({
+            "id": cls.id,
+            "name": cls.name,
+            "teacher_id": cls.teacher_id,
+            "students": active_students,
+            "customColumns": cls.custom_columns or [],
+            "thresholds": thresholds,
+            "statistics": {
+                "total_students": total_students,
+                "avg_attendance": round(avg_attendance, 3),
+                "at_risk_count": at_risk,
+                "excellent_count": excellent
+            },
+            "created_at": cls.created_at.isoformat() if cls.created_at else None,
+            "updated_at": cls.updated_at.isoformat() if cls.updated_at else None
+        })
+    
+    return response_classes
+
+@app.post("/api/classes")
+async def create_class(request: ClassRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Create a new class"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can create classes")
+    
+    class_id = str(request.id)
+    
+    # Check if class already exists
+    result = await db.execute(select(Class).where(Class.id == class_id))
+    existing_class = result.scalar_one_or_none()
+    
+    if existing_class:
+        raise HTTPException(status_code=400, detail="Class with this ID already exists")
+    
+    # Create class
+    new_class = Class(
+        id=class_id,
+        name=request.name,
+        teacher_id=current_user.id,
+        custom_columns=request.customColumns,
+        thresholds=request.thresholds or {
+            "excellent": 95.0,
+            "good": 90.0,
+            "moderate": 85.0,
+            "atRisk": 85.0
+        }
+    )
+    db.add(new_class)
+    
+    # Add students
+    for student_data in request.students:
+        student_record = StudentRecord(
+            id=student_data.get("id"),
+            class_id=class_id,
+            name=student_data.get("name"),
+            roll_no=student_data.get("rollNo"),
+            email=student_data.get("email"),
+            attendance=student_data.get("attendance", {})
+        )
+        db.add(student_record)
+    
+    await db.commit()
+    await update_teacher_overview(current_user.id, db)
+    
+    return {"message": "Class created successfully", "class_id": class_id}
+
+@app.put("/api/classes/{class_id}")
+async def update_class(class_id: str, request: ClassRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Update a class"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can update classes")
+    
+    # Get class
+    result = await db.execute(
+        select(Class)
+        .where(Class.id == class_id)
+        .where(Class.teacher_id == current_user.id)
+        .options(selectinload(Class.student_records))
+    )
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Update class info
+    cls.name = request.name
+    cls.custom_columns = request.customColumns
+    cls.thresholds = request.thresholds
+    cls.updated_at = datetime.utcnow()
+    
+    # Get current student IDs
+    current_record_ids = {sr.id for sr in cls.student_records}
+    incoming_record_ids = {s.get("id") for s in request.students}
+    deleted_record_ids = current_record_ids - incoming_record_ids
+    
+    # Mark deleted students as inactive in enrollments
+    if deleted_record_ids:
+        await db.execute(
+            update(Enrollment)
+            .where(Enrollment.class_id == class_id)
+            .where(Enrollment.student_record_id.in_(deleted_record_ids))
+            .where(Enrollment.status == "active")
+            .values(status="inactive", removed_by_teacher_at=datetime.utcnow())
+        )
+    
+    # Update/create student records
+    for student_data in request.students:
+        record_id = student_data.get("id")
+        
+        # Find existing record
+        existing_record = next((sr for sr in cls.student_records if sr.id == record_id), None)
+        
+        if existing_record:
+            # Update existing
+            existing_record.name = student_data.get("name")
+            existing_record.roll_no = student_data.get("rollNo")
+            existing_record.email = student_data.get("email")
+            existing_record.attendance = student_data.get("attendance", {})
+        else:
+            # Create new
+            new_record = StudentRecord(
+                id=record_id,
+                class_id=class_id,
+                name=student_data.get("name"),
+                roll_no=student_data.get("rollNo"),
+                email=student_data.get("email"),
+                attendance=student_data.get("attendance", {})
+            )
+            db.add(new_record)
+    
+    await db.commit()
+    await update_teacher_overview(current_user.id, db)
+    
+    return {"message": "Class updated successfully"}
+
+@app.delete("/api/classes/{class_id}")
+async def delete_class(class_id: str, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Delete a class"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can delete classes")
+    
+    result = await db.execute(
+        select(Class)
+        .where(Class.id == class_id)
+        .where(Class.teacher_id == current_user.id)
+    )
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    await db.execute(delete(Class).where(Class.id == class_id))
+    await db.commit()
+    await update_teacher_overview(current_user.id, db)
+    
+    return {"message": "Class deleted successfully"}
+
+# ==================== STUDENT ENROLLMENT ENDPOINTS ====================
+
+@app.post("/api/student/enroll")
+async def enroll_student(request: StudentEnrollmentRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Enroll student in a class"""
+    
+    if current_user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can enroll")
+    
+    # Check if class exists
+    result = await db.execute(select(Class).where(Class.id == request.class_id))
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Check if already actively enrolled
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.class_id == request.class_id)
+        .where(Enrollment.status == "active")
+    )
+    active_enrollment = result.scalar_one_or_none()
+    
+    if active_enrollment:
+        raise HTTPException(status_code=400, detail="Already enrolled in this class")
+    
+    # Check if was enrolled before (re-enrollment)
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.class_id == request.class_id)
+    )
+    previous_enrollment = result.scalar_one_or_none()
+    
+    if previous_enrollment:
+        # RE-ENROLLMENT - reactivate
+        previous_enrollment.status = "active"
+        previous_enrollment.re_enrolled_at = datetime.utcnow()
+        previous_enrollment.roll_no = request.rollNo
+        
+        # Get student record
+        result = await db.execute(
+            select(StudentRecord)
+            .where(StudentRecord.id == previous_enrollment.student_record_id)
+        )
+        student_record = result.scalar_one_or_none()
+        
+        if student_record:
+            student_record.name = request.name
+            student_record.roll_no = request.rollNo
+            attendance_count = len(student_record.attendance or {})
+            message = f"Welcome back! Your {attendance_count} attendance records have been restored."
+        else:
+            # Create if missing
+            student_record = StudentRecord(
+                id=previous_enrollment.student_record_id,
+                class_id=request.class_id,
+                name=request.name,
+                roll_no=request.rollNo,
+                email=request.email,
+                attendance={}
+            )
+            db.add(student_record)
+            message = "Re-enrolled successfully"
+        
+        await db.commit()
+        await update_teacher_overview(cls.teacher_id, db)
+        
+        return {"message": message, "status": "re-enrolled"}
+    
+    else:
+        # NEW ENROLLMENT
+        student_record_id = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Create student record
+        new_record = StudentRecord(
+            id=student_record_id,
+            class_id=request.class_id,
+            name=request.name,
+            roll_no=request.rollNo,
+            email=request.email,
+            attendance={}
+        )
+        db.add(new_record)
+        
+        # Create enrollment
+        new_enrollment = Enrollment(
+            student_id=current_user.id,
+            class_id=request.class_id,
+            student_record_id=student_record_id,
+            roll_no=request.rollNo,
+            status="active"
+        )
+        db.add(new_enrollment)
+        
+        await db.commit()
+        await update_teacher_overview(cls.teacher_id, db)
+        
+        return {"message": "Successfully enrolled in class!", "status": "enrolled"}
+
+@app.delete("/api/student/unenroll/{class_id}")
+async def unenroll_student(class_id: str, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Unenroll student from a class"""
+    
+    if current_user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can unenroll")
+    
+    # Find active enrollment
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.class_id == class_id)
+        .where(Enrollment.status == "active")
+    )
+    enrollment = result.scalar_one_or_none()
+    
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Not enrolled in this class")
+    
+    # Mark as inactive (preserve data)
+    enrollment.status = "inactive"
+    enrollment.unenrolled_at = datetime.utcnow()
+    
+    # Get class for teacher update
+    result = await db.execute(select(Class).where(Class.id == class_id))
+    cls = result.scalar_one_or_none()
+    
+    await db.commit()
+    
+    if cls:
+        await update_teacher_overview(cls.teacher_id, db)
+    
+    return {"message": "Successfully unenrolled from class"}
+
+@app.get("/api/student/classes")
+async def get_student_classes(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get all classes student is enrolled in"""
+    
+    if current_user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can access this")
+    
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.status == "active")
+        .options(selectinload(Enrollment.class_obj).selectinload(Class.teacher))
+    )
+    enrollments = result.scalars().all()
+    
+    response = []
+    for enrollment in enrollments:
+        cls = enrollment.class_obj
+        response.append({
+            "class_id": cls.id,
+            "class_name": cls.name,
+            "teacher_name": cls.teacher.name if cls.teacher else "Unknown",
+            "enrolled_at": enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+            "re_enrolled_at": enrollment.re_enrolled_at.isoformat() if enrollment.re_enrolled_at else None
+        })
+    
+    return response
+
+@app.get("/api/student/classes/{class_id}")
+async def get_student_class_details(class_id: str, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get detailed info about student's enrollment in a class"""
+    
+    if current_user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can access this")
+    
+    # Get enrollment
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.class_id == class_id)
+        .where(Enrollment.status == "active")
+        .options(selectinload(Enrollment.student_record))
+    )
+    enrollment = result.scalar_one_or_none()
+    
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Not enrolled in this class")
+    
+    # Get class
+    result = await db.execute(select(Class).where(Class.id == class_id))
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Get student record
+    result = await db.execute(
+        select(StudentRecord)
+        .where(StudentRecord.id == enrollment.student_record_id)
+    )
+    student_record = result.scalar_one_or_none()
+    
+    if not student_record:
+        raise HTTPException(status_code=404, detail="Student record not found")
+    
+    # Calculate statistics
+    attendance = student_record.attendance or {}
+    present = sum(1 for v in attendance.values() if v == "P")
+    absent = sum(1 for v in attendance.values() if v == "A")
+    late = sum(1 for v in attendance.values() if v == "L")
+    total = len(attendance)
+    percentage = ((present + late) / total * 100) if total > 0 else 0.0
+    
+    thresholds = cls.thresholds or {
+        "excellent": 95.0,
+        "good": 90.0,
+        "moderate": 85.0,
+        "atRisk": 85.0
+    }
+    
+    if percentage >= thresholds.get("excellent", 95.0):
+        status = "excellent"
+    elif percentage >= thresholds.get("good", 90.0):
+        status = "good"
+    elif percentage >= thresholds.get("moderate", 85.0):
+        status = "moderate"
+    else:
+        status = "at risk"
+    
+    return {
+        "class_id": cls.id,
+        "class_name": cls.name,
+        "teacher_id": cls.teacher_id,
+        "student_record": {
+            "id": student_record.id,
+            "name": student_record.name,
+            "rollNo": student_record.roll_no,
+            "email": student_record.email,
+            "attendance": attendance
+        },
+        "thresholds": thresholds,
+        "statistics": {
+            "total_classes": total,
+            "present": present,
+            "absent": absent,
+            "late": late,
+            "percentage": round(percentage, 3),
+            "status": status
+        }
+    }
+
+# ==================== QR CODE ENDPOINTS ====================
+
+@app.post("/api/qr/start-session")
+async def start_qr_session(request: QRSessionRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Start QR attendance session"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can start QR sessions")
+    
+    # Verify class belongs to teacher
+    result = await db.execute(
+        select(Class)
+        .where(Class.id == request.class_id)
+        .where(Class.teacher_id == current_user.id)
+    )
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Check if active session exists
+    result = await db.execute(
+        select(QRSession)
+        .where(QRSession.class_id == request.class_id)
+        .where(QRSession.status == "active")
+    )
+    existing_session = result.scalar_one_or_none()
+    
+    if existing_session:
+        # Update existing session
+        existing_session.current_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        existing_session.code_generated_at = datetime.utcnow()
+        existing_session.rotation_interval = request.rotation_interval
+        await db.commit()
+        
+        return {
+            "class_id": request.class_id,
+            "current_code": existing_session.current_code,
+            "attendance_date": existing_session.attendance_date,
+            "started_at": existing_session.started_at.isoformat(),
+            "rotation_interval": existing_session.rotation_interval,
+            "status": "active"
+        }
+    
+    # Create new session
+    today = datetime.now().strftime("%Y-%m-%d")
+    qr_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    
+    new_session = QRSession(
+        class_id=request.class_id,
+        teacher_id=current_user.id,
+        current_code=qr_code,
+        attendance_date=today,
+        rotation_interval=request.rotation_interval,
+        status="active",
+        scanned_students=[]
+    )
+    db.add(new_session)
+    await db.commit()
+    
+    return {
+        "class_id": request.class_id,
+        "current_code": qr_code,
+        "attendance_date": today,
+        "started_at": new_session.started_at.isoformat(),
+        "rotation_interval": request.rotation_interval,
+        "status": "active"
+    }
+
+@app.get("/api/qr/session/{class_id}")
+async def get_qr_session(class_id: str, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get current QR session"""
+    
+    result = await db.execute(
+        select(QRSession)
+        .where(QRSession.class_id == class_id)
+        .where(QRSession.status == "active")
+    )
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        return None
+    
+    # Auto-rotate code if needed
+    elapsed = (datetime.utcnow() - session.code_generated_at).total_seconds()
+    
+    if elapsed >= session.rotation_interval:
+        session.current_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        session.code_generated_at = datetime.utcnow()
+        await db.commit()
+    
+    return {
+        "class_id": session.class_id,
+        "current_code": session.current_code,
+        "attendance_date": session.attendance_date,
+        "started_at": session.started_at.isoformat(),
+        "rotation_interval": session.rotation_interval,
+        "scanned_students": session.scanned_students or [],
+        "status": session.status
+    }
+
+@app.post("/api/qr/scan")
+async def scan_qr_code(request: ScanQRRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Student scans QR code to mark attendance"""
+    
+    if current_user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can scan QR codes")
+    
+    # Get active session
+    result = await db.execute(
+        select(QRSession)
+        .where(QRSession.class_id == request.class_id)
+        .where(QRSession.status == "active")
+    )
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise HTTPException(status_code=400, detail="No active QR session")
+    
+    if session.current_code != request.qr_code:
+        raise HTTPException(status_code=400, detail="Invalid or expired QR code")
+    
+    # Get enrollment
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.student_id == current_user.id)
+        .where(Enrollment.class_id == request.class_id)
+        .where(Enrollment.status == "active")
+    )
+    enrollment = result.scalar_one_or_none()
+    
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="Not enrolled in this class")
+    
+    # Get student record
+    result = await db.execute(
+        select(StudentRecord)
+        .where(StudentRecord.id == enrollment.student_record_id)
+    )
+    student_record = result.scalar_one_or_none()
+    
+    if not student_record:
+        raise HTTPException(status_code=404, detail="Student record not found")
+    
+    # Mark attendance
+    attendance = student_record.attendance or {}
+    attendance[session.attendance_date] = "P"
+    student_record.attendance = attendance
+    
+    # Add to scanned list
+    scanned = session.scanned_students or []
+    if student_record.id not in scanned:
+        scanned.append(student_record.id)
+        session.scanned_students = scanned
+    
+    await db.commit()
+    
+    return {
+        "message": "Attendance marked as Present",
+        "date": session.attendance_date
+    }
+
+@app.post("/api/qr/stop-session/{class_id}")
+async def stop_qr_session(class_id: str, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Stop QR session and mark non-scanned students as absent"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can stop QR sessions")
+    
+    # Get session
+    result = await db.execute(
+        select(QRSession)
+        .where(QRSession.class_id == class_id)
+        .where(QRSession.status == "active")
+        .where(QRSession.teacher_id == current_user.id)
+    )
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session found")
+    
+    # Get all active enrollments
+    result = await db.execute(
+        select(Enrollment)
+        .where(Enrollment.class_id == class_id)
+        .where(Enrollment.status == "active")
+    )
+    enrollments = result.scalars().all()
+    
+    active_record_ids = {e.student_record_id for e in enrollments}
+    scanned_ids = set(session.scanned_students or [])
+    
+    # Mark absents
+    marked_absent = 0
+    for record_id in active_record_ids:
+        if record_id not in scanned_ids:
+            result = await db.execute(
+                select(StudentRecord).where(StudentRecord.id == record_id)
+            )
+            student_record = result.scalar_one_or_none()
+            
+            if student_record:
+                attendance = student_record.attendance or {}
+                if session.attendance_date not in attendance:
+                    attendance[session.attendance_date] = "A"
+                    student_record.attendance = attendance
+                    marked_absent += 1
+    
+    # Stop session
+    session.status = "stopped"
+    session.stopped_at = datetime.utcnow()
+    
+    await db.commit()
+    
+    return {
+        "message": "QR session stopped",
+        "scanned_count": len(scanned_ids),
+        "absent_count": marked_absent,
+        "date": session.attendance_date
+    }
+
+# ==================== CONTACT ENDPOINT ====================
+
+@app.post("/api/contact")
+async def submit_contact(request: ContactRequest, db: AsyncSession = Depends(get_db)):
+    """Submit contact form"""
+    
+    message = ContactMessage(
+        email=request.email,
+        name=request.name,
+        subject=request.subject,
+        message=request.message
+    )
+    db.add(message)
+    await db.commit()
+    
+    return {"message": "Message sent successfully"}
+
+# ==================== OVERVIEW ENDPOINT ====================
+
+@app.get("/api/overview")
+async def get_overview(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get teacher overview"""
+    
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can access overview")
+    
+    return {
+        "total_classes": current_user.total_classes,
+        "total_students": current_user.total_students,
+        "last_updated": datetime.utcnow().isoformat()
+    }
