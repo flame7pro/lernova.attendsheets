@@ -14,7 +14,7 @@ export interface Student {
   rollNo: string;
   name: string;
   email?: string;
-  attendance: Record<string, string>;
+  attendance: Record<string, 'P' | 'A' | 'L'>;  // ✅ Specific values only
   [key: string]: any;
 }
 
