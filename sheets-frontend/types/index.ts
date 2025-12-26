@@ -16,7 +16,7 @@ export interface Student {
   id: number;
   rollNo: string;
   name: string;
-  attendance: Record<string, 'P' | 'A' | 'L' | undefined>;
+  attendance: Record<string, string>;  // ← CHANGED THIS LINE
   [key: string]: any;
 }
 
