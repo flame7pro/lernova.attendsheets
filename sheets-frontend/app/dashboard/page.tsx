@@ -517,7 +517,7 @@ export default function DashboardPage() {
 
     const updatedClass = updatedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
-      saveClass(updatedClass);
+      saveClass(sanitizeClass(updatedClass));
     }
   };
 
