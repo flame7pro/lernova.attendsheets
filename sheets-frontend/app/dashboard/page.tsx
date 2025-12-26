@@ -480,27 +480,52 @@ export default function DashboardPage() {
       id: `col_${Date.now()}`,
       label: newColumnLabel,
       type: newColumnType
+    };
+
+    const updatedClasses = classes.map(cls =>
+      cls.id === activeClassId
+        ? { ...cls, customColumns: [...cls.customColumns, newColumn] }
+        : cls
+    );
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    setNewColumnLabel('');
+    setNewColumnType('text');
+    setShowAddColumnModal(false);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
+    if (updatedClass) {
+      saveClass(updatedClass);
+    }
   };
 
-  const updatedClasses = classes.map(cls =>
-    cls.id === activeClassId
-      ? { ...cls, customColumns: [...cls.customColumns, newColumn] }
-      : cls
-  );
-
-  const sanitizedClasses = updatedClasses.map(sanitizeClass);
-  setClasses(sanitizedClasses);
-
-  setNewColumnLabel('');
-  setNewColumnType('text');
-  setShowAddColumnModal(false);
-
-  const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
-  if (updatedClass) {
-    saveClass(updatedClass);
-  }
-};
+  const handleDeleteColumn = (columnId: string) => {
+    if (!activeClassId) return;
   
+    const updatedClasses = classes.map(cls =>
+      cls.id === activeClassId
+        ? {
+            ...cls,
+            customColumns: cls.customColumns.filter(col => col.id !== columnId),
+            students: cls.students.map(student => {
+              const { [columnId]: _, ...rest } = student;
+              return rest as Student;
+            })
+          }
+        : cls
+    );
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
+    if (updatedClass) {
+      saveClass(updatedClass);
+    }
+  };
+    
   if (loading) {
     return (
       <div className="min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
