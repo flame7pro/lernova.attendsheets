@@ -16,7 +16,7 @@ interface ClassDetails {
   class_name: string;
   teacher_name: string;
   student_record: {
-    id: numbesdf;
+    id: number;
     name: string;
     rollNo: string;
     email: string;
