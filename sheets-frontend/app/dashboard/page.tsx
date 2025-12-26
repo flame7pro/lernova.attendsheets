@@ -349,9 +349,10 @@ export default function DashboardPage() {
     const updatedClasses = classes.map(cls =>
       cls.id === classId ? { ...cls, name: newName } : cls
     );
-    setClasses(updatedClasses.map(sanitizeClass));
-
-    const updatedClass = updatedClasses.find(c => c.id === classId);
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === classId);
     if (updatedClass) {
       saveClass(updatedClass);
     }
@@ -359,24 +360,24 @@ export default function DashboardPage() {
 
   const handleAddStudent = () => {
     if (!activeClassId) return;
-
+  
     const newStudent: Student = {
       id: Date.now(),
       rollNo: '',
       name: '',
       attendance: {}
     };
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? { ...cls, students: [...cls.students, newStudent] }
         : cls
     );
-
-    setClasses(updatedClasses.map(sanitizeClass));
-
-    // Sync to backend
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
       saveClass(updatedClass);
     }
@@ -384,24 +385,24 @@ export default function DashboardPage() {
 
   const handleUpdateStudent = (studentId: number, field: string, value: any) => {
     if (!activeClassId) return;
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? {
-          ...cls,
-          students: cls.students.map(student =>
-            student.id === studentId
-              ? { ...student, [field]: value }
-              : student
-          )
-        }
+            ...cls,
+            students: cls.students.map(student =>
+              student.id === studentId
+                ? { ...student, [field]: value }
+                : student
+            )
+          }
         : cls
     );
-
-    setClasses(updatedClasses.map(sanitizeClass));
-
-    // Debounced sync to backend
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
       saveClass(updatedClass);
     }
@@ -409,16 +410,17 @@ export default function DashboardPage() {
 
   const handleDeleteStudent = (studentId: number) => {
     if (!activeClassId) return;
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? { ...cls, students: cls.students.filter(s => s.id !== studentId) }
         : cls
     );
-
-    setClasses(updatedClasses.map(sanitizeClass));
-
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
       saveClass(updatedClass);
     }
@@ -426,45 +428,46 @@ export default function DashboardPage() {
 
   const handleToggleAttendance = (studentId: number, day: number) => {
     if (!activeClassId) return;
-
+  
     const dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? {
-          ...cls,
-          students: cls.students.map(student => {
-            if (student.id === studentId) {
-              const currentStatus = student.attendance[dateKey];
-              let newStatus: 'P' | 'A' | 'L' | undefined;
-
-              if (!currentStatus) {
-                newStatus = 'P';
-              } else if (currentStatus === 'P') {
-                newStatus = 'A';
-              } else if (currentStatus === 'A') {
-                newStatus = 'L';
-              } else {
-                newStatus = undefined;
-              }
-
-              return {
-                ...student,
-                attendance: {
-                  ...student.attendance,
-                  [dateKey]: newStatus
+            ...cls,
+            students: cls.students.map(student => {
+              if (student.id === studentId) {
+                const currentStatus = student.attendance[dateKey];
+                let newStatus: 'P' | 'A' | 'L' | undefined;
+  
+                if (!currentStatus) {
+                  newStatus = 'P';
+                } else if (currentStatus === 'P') {
+                  newStatus = 'A';
+                } else if (currentStatus === 'A') {
+                  newStatus = 'L';
+                } else {
+                  newStatus = undefined;
                 }
-              };
-            }
-            return student;
-          })
-        }
+  
+                return {
+                  ...student,
+                  attendance: {
+                    ...student.attendance,
+                    [dateKey]: newStatus
+                  }
+                };
+              }
+              return student;
+            })
+          }
         : cls
     );
 
-    setClasses(updatedClasses.map(sanitizeClass));
-
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);
+    setClasses(sanitizedClasses);
+  
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
     if (updatedClass) {
       saveClass(updatedClass);
     }
@@ -477,51 +480,26 @@ export default function DashboardPage() {
       id: `col_${Date.now()}`,
       label: newColumnLabel,
       type: newColumnType
-    };
-  
-    const updatedClasses = classes.map(cls =>
-      cls.id === activeClassId
-        ? { ...cls, customColumns: [...cls.customColumns, newColumn] }
-        : cls
-    );
-  
-    setClasses(updatedClasses.map(sanitizeClass));
-  
-    setNewColumnLabel('');
-    setNewColumnType('text');
-    setShowAddColumnModal(false);
-  
-    const sanitizedClasses = updatedClasses.map(sanitizeClass);  // ✅ SANITIZE
-    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);  // ✅ USE SANITIZED
-    if (updatedClass) {
-      saveClass(updatedClass);  // ✅ NOW IT'S SANITIZED
-    }
   };
-  
-  const handleDeleteColumn = (columnId: string) => {
-    if (!activeClassId) return;
-  
-    const updatedClasses = classes.map(cls =>
-      cls.id === activeClassId
-        ? {
-            ...cls,
-            customColumns: cls.customColumns.filter(col => col.id !== columnId),
-            students: cls.students.map(student => {
-              const { [columnId]: _, ...rest } = student;
-              return rest as Student;
-            })
-          }
-        : cls
-    );
-  
-    setClasses(updatedClasses.map(sanitizeClass));
-  
-    const sanitizedClasses = updatedClasses.map(sanitizeClass);  // ✅ ADD THIS
-    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);  // ✅ CHANGE THIS
-    if (updatedClass) {
-      saveClass(updatedClass);  // ✅ NOW IT'S SANITIZED
-    }
-  };
+
+  const updatedClasses = classes.map(cls =>
+    cls.id === activeClassId
+      ? { ...cls, customColumns: [...cls.customColumns, newColumn] }
+      : cls
+  );
+
+  const sanitizedClasses = updatedClasses.map(sanitizeClass);
+  setClasses(sanitizedClasses);
+
+  setNewColumnLabel('');
+  setNewColumnType('text');
+  setShowAddColumnModal(false);
+
+  const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);
+  if (updatedClass) {
+    saveClass(updatedClass);
+  }
+};
   
   if (loading) {
     return (
