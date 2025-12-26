@@ -472,31 +472,32 @@ export default function DashboardPage() {
 
   const handleAddColumn = () => {
     if (!newColumnLabel.trim() || !activeClassId) return;
-
+  
     const newColumn: CustomColumn = {
       id: `col_${Date.now()}`,
       label: newColumnLabel,
       type: newColumnType
     };
-
+  
     const updatedClasses = classes.map(cls =>
       cls.id === activeClassId
         ? { ...cls, customColumns: [...cls.customColumns, newColumn] }
         : cls
     );
-
+  
     setClasses(updatedClasses.map(sanitizeClass));
-
+  
     setNewColumnLabel('');
     setNewColumnType('text');
     setShowAddColumnModal(false);
-
-    const updatedClass = updatedClasses.find(c => c.id === activeClassId);
+  
+    const sanitizedClasses = updatedClasses.map(sanitizeClass);  // ✅ SANITIZE
+    const updatedClass = sanitizedClasses.find(c => c.id === activeClassId);  // ✅ USE SANITIZED
     if (updatedClass) {
-      saveClass(updatedClass);
+      saveClass(updatedClass);  // ✅ NOW IT'S SANITIZED
     }
   };
-
+  
   const handleDeleteColumn = (columnId: string) => {
     if (!activeClassId) return;
   
