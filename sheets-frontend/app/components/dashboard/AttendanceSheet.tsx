@@ -24,7 +24,7 @@ interface Student {
 }
 
 interface Class {
-  id: number;
+  id: string;
   name: string;
   students: Student[];
   customColumns: CustomColumn[];
@@ -39,6 +39,7 @@ interface AttendanceThresholds {
 }
 
 interface AttendanceSheetProps {
+  cls: Class;
   activeClass: Class;
   currentMonth: number;
   currentYear: number;
