@@ -106,7 +106,7 @@ export const StudentEnrollmentModal: React.FC<EnrollmentModalProps> = ({
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            classid: classId,  // ✅ FIX #2: Remove underscore!
+            class_id: classId, 
             name: studentName,
             rollNo: rollNo.trim(),
             email: studentEmail
