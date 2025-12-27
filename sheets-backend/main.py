@@ -359,8 +359,25 @@ async def update_teacher_overview(teacher_id: str, db: AsyncSession):
 
 @app.on_event("startup")
 async def startup_event():
-    await init_db()
-
+    print("=" * 60)
+    print("🔧 INITIALIZING DATABASE...")
+    print("=" * 60)
+    try:
+        await init_db()
+        print("✅ Database tables created/verified successfully!")
+        
+        # Test the connection
+        async for db in get_db():
+            from sqlalchemy import text
+            result = await db.execute(text("SELECT 1"))
+            print("✅ Database connection working!")
+            break
+            
+    except Exception as e:
+        print(f"❌ DATABASE ERROR: {e}")
+        print("⚠️ API will start but database operations will fail!")
+    print("=" * 60)
+        
 # ==================== ROOT & HEALTH ====================
 
 @app.get("/")
