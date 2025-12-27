@@ -39,22 +39,24 @@ interface Class {
 
 interface SidebarProps {
   collapsed: boolean;
-  onToggleCollapsed: () => void;  // ✅ ADD THIS LINE
+  onToggleCollapsed: () => void;
   classes: Class[];
-  activeClassId: string | null;  // ✅ Also fix: change from number to string
-  onClassSelect: (id: string) => void;  // ✅ Also fix: change from number to string
+  activeClassId: string | null;
+  onClassSelect: (id: string) => void;
   onAddClass: () => void;
-  onDeleteClass: (id: string, e: React.MouseEvent<HTMLButtonElement>) => void;  // ✅ Fix: string
+  onDeleteClass: (id: string, e: React.MouseEvent<HTMLButtonElement>) => void;
   onViewAllClasses: () => void;
   onViewSnapshot: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
-  onUpdateClassName: (id: string, newName: string) => void;  // ✅ Fix: string
+  onUpdateClassName: (id: string, newName: string) => void;
+  syncing: boolean;        // ✅ ADD THIS LINE
+  syncError: string;       // ✅ ADD THIS LINE
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
-  onToggleCollapsed,  // ✅ ADD THIS LINE
+  onToggleCollapsed,
   classes,
   activeClassId,
   onClassSelect,
@@ -65,6 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   onLogout,
   onUpdateClassName,
+  syncing,      // ✅ ADD THIS LINE
+  syncError,    // ✅ ADD THIS LINE
 }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
