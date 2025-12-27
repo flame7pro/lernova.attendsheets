@@ -14,8 +14,8 @@ class Teacher(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     verified = Column(Boolean, default=True)
     role = Column(String, default="teacher")
-    total_classes = column(BigInteger, default=0)
-    total_students = column(BigInteger, default=0)
+    total_classes = Column(BigInteger, default=0)
+    total_students = Column(BigInteger, default=0)
     
     # Relationships
     classes = relationship("Class", back_populates="teacher", cascade="all, delete-orphan")
@@ -41,7 +41,7 @@ class Class(Base):
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     teacher_id = Column(String, ForeignKey("teachers.id", ondelete="CASCADE"), nullable=False)
-    custom_columns = Column(JSON, default=list)
+    custom_Columns = Column(JSON, default=list)
     thresholds = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -55,10 +55,10 @@ class Class(Base):
 class Enrollment(Base):
     __tablename__ = "enrollments"
     
-    id = column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     student_id = Column(String, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     class_id = Column(String, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
-    student_record_id = column(BigInteger, ForeignKey("student_records.id", ondelete="CASCADE"), nullable=False)
+    student_record_id = Column(BigInteger, ForeignKey("student_records.id", ondelete="CASCADE"), nullable=False)
     roll_no = Column(String, nullable=False)
     enrolled_at = Column(DateTime, default=datetime.utcnow)
     unenrolled_at = Column(DateTime, nullable=True)
@@ -74,7 +74,7 @@ class Enrollment(Base):
 class StudentRecord(Base):
     __tablename__ = "student_records"
     
-    id = column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     class_id = Column(String, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     roll_no = Column(String, nullable=False)
@@ -87,7 +87,7 @@ class StudentRecord(Base):
 class QRSession(Base):
     __tablename__ = "qr_sessions"
     
-    id = column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     class_id = Column(String, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False, unique=True)
     teacher_id = Column(String, ForeignKey("teachers.id", ondelete="CASCADE"), nullable=False)
     current_code = Column(String, nullable=False)
@@ -95,7 +95,7 @@ class QRSession(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
     code_generated_at = Column(DateTime, default=datetime.utcnow)
-    rotation_interval = column(BigInteger, default=5)
+    rotation_interval = Column(BigInteger, default=5)
     scanned_students = Column(JSON, default=list)
     status = Column(String, default="active")
     
@@ -105,7 +105,7 @@ class QRSession(Base):
 class ContactMessage(Base):
     __tablename__ = "contact_messages"
     
-    id = column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     email = Column(String, nullable=False)
     name = Column(String, nullable=False)
     subject = Column(String, nullable=False)
