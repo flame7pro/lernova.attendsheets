@@ -128,6 +128,22 @@ class ScanQRRequest(BaseModel):
     class_id: str
 
 # ==================== DEBUG ENDPOINT ====================
+@app.get("/debug/view-classes-raw")
+async def debug_view_classes_raw(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Class))
+    classes = result.scalars().all()
+    return {
+        "count": len(classes),
+        "classes": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "teacher_id": c.teacher_id,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in classes
+        ],
+    }
 
 @app.get("/debug/create-tables")
 async def debug_create_tables():
@@ -216,22 +232,6 @@ async def view_classes(db: AsyncSession = Depends(get_db)):
             for c in classes
         ]
     }
-
-    @app.get("/debug/view-classes-raw")
-    async def debug_view_classes_raw(db: AsyncSession = Depends(get_db)):
-        result = await db.execute(select(Class))
-        classes = result.scalars().all()
-        return {
-            "count": len(classes),
-            "classes": [
-                {
-                    "id": c.id,
-                    "name": c.name,
-                    "teacher_id": c.teacher_id,
-                }
-                for c in classes
-            ],
-        }
 
 @app.get("/debug/view-class-details/{class_id}")
 async def view_class_details(class_id: str, db: AsyncSession = Depends(get_db)):
