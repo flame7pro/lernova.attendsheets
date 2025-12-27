@@ -127,6 +127,27 @@ class ScanQRRequest(BaseModel):
     qr_code: str
     class_id: str
 
+# ==================== DEBUG ENDPOINT ====================
+
+@app.get("/debug/create-tables")
+async def debug_create_tables():
+    """TEMPORARY: Manually create database tables"""
+    try:
+        from database import Base, engine
+        from models import Teacher, Student, Class, Enrollment, StudentRecord, QRSession, ContactMessage
+        
+        print("🔧 Creating database tables...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        print("✅ Tables created successfully!")
+        return {"success": True, "message": "Tables created successfully!"}
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
 # ==================== HELPER FUNCTIONS ====================
 
 def get_password_hash(password: str) -> str:
@@ -359,23 +380,22 @@ async def update_teacher_overview(teacher_id: str, db: AsyncSession):
 
 @app.on_event("startup")
 async def startup_event():
+    """Initialize database tables on startup"""
     print("=" * 60)
-    print("🔧 INITIALIZING DATABASE...")
+    print("🚀 LERNOVA BACKEND STARTING")
     print("=" * 60)
+    
+    # Import models to register them with Base
+    from models import Teacher, Student, Class, Enrollment, StudentRecord, QRSession, ContactMessage
+    
     try:
         await init_db()
-        print("✅ Database tables created/verified successfully!")
-        
-        # Test the connection
-        async for db in get_db():
-            from sqlalchemy import text
-            result = await db.execute(text("SELECT 1"))
-            print("✅ Database connection working!")
-            break
-            
+        print("✅ Database tables created/verified!")
     except Exception as e:
-        print(f"❌ DATABASE ERROR: {e}")
-        print("⚠️ API will start but database operations will fail!")
+        print(f"❌ Database initialization error: {e}")
+        import traceback
+        traceback.print_exc()
+    
     print("=" * 60)
         
 # ==================== ROOT & HEALTH ====================
