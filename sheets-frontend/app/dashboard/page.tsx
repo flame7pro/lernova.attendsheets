@@ -598,8 +598,10 @@ export default function DashboardPage() {
             <MonthYearSelector
               currentMonth={currentMonth}
               currentYear={currentYear}
-              onChange={(month, year) => {
+              onMonthChange={(month: number) => {
                 setCurrentMonth(month);
+              }}
+              onYearChange={(year: number) => {
                 setCurrentYear(year);
               }}
             />
