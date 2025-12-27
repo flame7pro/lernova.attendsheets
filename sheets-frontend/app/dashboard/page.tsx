@@ -635,7 +635,7 @@ export default function DashboardPage() {
             <EmptyState onCreateClass={() => setShowAddClassModal(true)} />
           ) : showSnapshot ? (
             <SnapshotView
-              classes={classes}
+              classes={classes.map(c => ({ ...c, id: Number(c.id) }))}  // ✅ Convert to number
               currentMonth={currentMonth}
               currentYear={currentYear}
               defaultThresholds={defaultThresholds}
