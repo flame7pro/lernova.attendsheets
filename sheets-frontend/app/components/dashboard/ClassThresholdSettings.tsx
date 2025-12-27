@@ -11,7 +11,7 @@ interface AttendanceThresholds {
 }
 
 interface Class {
-  id: number;
+  id: string;
   name: string;
 }
 
@@ -21,7 +21,7 @@ interface ClassThresholdSettingsProps {
   allClasses: Class[];
   thresholds: AttendanceThresholds;
   onClose: () => void;
-  onSave: (thresholds: AttendanceThresholds, applyToClassIds: number[]) => void;
+  onSave: (thresholds: AttendanceThresholds, applyToClassIds: string[]) => void;
 }
 
 export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
@@ -33,7 +33,7 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
   onSave,
 }) => {
   const [localThresholds, setLocalThresholds] = useState<AttendanceThresholds>(thresholds);
-  const [selectedClasses, setSelectedClasses] = useState<number[]>([currentClass.id]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([currentClass.id]); // ✅ FIXED: string[]
   const [error, setError] = useState('');
 
   const defaultThresholds: AttendanceThresholds = {
@@ -46,7 +46,7 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       setLocalThresholds(thresholds);
-      setSelectedClasses([currentClass.id]);
+      setSelectedClasses([currentClass.id]); // ✅ string[]
       setError('');
     }
   }, [isOpen, thresholds, currentClass.id]);
@@ -98,7 +98,7 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
 
   const handleSave = () => {
     if (validateThresholds()) {
-      onSave(localThresholds, selectedClasses);
+      onSave(localThresholds, selectedClasses); // ✅ string[]
       onClose();
     }
   };
@@ -108,7 +108,7 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
     setError('');
   };
 
-  const toggleClassSelection = (classId: number) => {
+  const toggleClassSelection = (classId: string) => { // ✅ FIXED: string
     if (classId === currentClass.id) return;
     
     setSelectedClasses(prev => 
@@ -119,11 +119,11 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
   };
 
   const selectAllClasses = () => {
-    setSelectedClasses(allClasses.map(c => c.id));
+    setSelectedClasses(allClasses.map(c => c.id)); // ✅ string[]
   };
 
   const deselectAllOthers = () => {
-    setSelectedClasses([currentClass.id]);
+    setSelectedClasses([currentClass.id]); // ✅ string[]
   };
 
   if (!isOpen) return null;
@@ -263,7 +263,7 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
                       step="0.001"
                       value={localThresholds.atRisk.toFixed(3)}
                       onChange={(e) => handleChange('atRisk', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-base text-black focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-colors pr-12"
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-base text-black focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-colors pr-12"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 font-medium">%</span>
                   </div>
@@ -280,25 +280,25 @@ export const ClassThresholdSettings: React.FC<ClassThresholdSettingsProps> = ({
               <div 
                 className="absolute top-0 left-0 h-full bg-rose-500 opacity-30"
                 style={{ width: `${localThresholds.moderate}%` }}
-              ></div>
+              />
               <div 
                 className="absolute top-0 h-full bg-amber-500 opacity-30"
                 style={{ 
                   left: `${localThresholds.moderate}%`,
                   width: `${localThresholds.good - localThresholds.moderate}%` 
                 }}
-              ></div>
+              />
               <div 
                 className="absolute top-0 h-full bg-blue-500 opacity-30"
                 style={{ 
                   left: `${localThresholds.good}%`,
                   width: `${localThresholds.excellent - localThresholds.good}%` 
                 }}
-              ></div>
+              />
               <div 
                 className="absolute top-0 right-0 h-full bg-emerald-500 opacity-30"
                 style={{ width: `${100 - localThresholds.excellent}%` }}
-              ></div>
+              />
               
               <div className="absolute inset-0 flex items-center justify-between px-2 text-xs font-semibold text-slate-700">
                 <span>0%</span>
