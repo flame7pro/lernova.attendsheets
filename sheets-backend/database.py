@@ -43,5 +43,6 @@ async def get_db():
 # Initialize database
 async def init_db():
     async with engine.begin() as conn:
+        # This creates all tables defined in your models
         await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database tables created successfully")
+
