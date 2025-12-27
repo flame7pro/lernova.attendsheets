@@ -16,7 +16,7 @@ export interface Student {
   id: number;
   rollNo: string;
   name: string;
-  attendance: Record<string, string>;  // ← CHANGED THIS LINE
+  attendance: Record<string, "P" | "A" | "L" | undefined>;  // ✅ Matches classService
   [key: string]: any;
 }
 
