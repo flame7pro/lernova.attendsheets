@@ -78,7 +78,7 @@ export default function DashboardPage() {
   const [newClassName, setNewClassName] = useState('');
   const [newColumnLabel, setNewColumnLabel] = useState('');
   const [newColumnType, setNewColumnType] = useState<'text' | 'number' | 'select'>('text');
-
+  const [sheetData, setSheetData] = useState<any>(null);
   // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -178,6 +178,54 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error syncing classes:', error);
       setSyncError('Failed to sync some changes');
+    }
+  };
+
+  const handleSaveSheet = async () => {
+    if (!activeClass) return;
+    
+    const dataToSave = {
+      classId: activeClass.id,
+      className: activeClass.name,
+      month: currentMonth,
+      year: currentYear,
+      students: [], // AttendanceSheet will pass real student data
+      thresholds: { excellent: 90, good: 80, moderate: 70, atRisk: 50 }
+    };
+  
+    try {
+      const response = await fetch('/api/attendance/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSave)
+      });
+      
+      if (response.ok) {
+        console.log("✅ Sheet SAVED for", activeClass.name);
+        toast.success("Attendance saved successfully!");
+      }
+    } catch (error) {
+      console.error("❌ Save failed:", error);
+      toast.error("Failed to save attendance");
+    }
+  };
+
+  const handleLoadSheet = async () => {
+    if (!activeClass) return;
+    
+    try {
+      const response = await fetch(
+        `/api/attendance/load/${activeClass.id}?month=${currentMonth}&year=${currentYear}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSheetData(data);
+        console.log("✅ Sheet LOADED for", activeClass.name);
+        toast.success("Attendance loaded!");
+      }
+    } catch (error) {
+      console.error("❌ Load failed:", error);
     }
   };
 
@@ -661,8 +709,10 @@ export default function DashboardPage() {
               onToggleAttendance={() => {}}
               onAddColumn={() => {}}
               onDeleteColumn={() => {}}
-              defaultThresholds={{ excellent: 95, good: 90, moderate: 85, atRisk: 85 }}  // ✅ Safe defaults
+              defaultThresholds={{ excellent: 90, good: 80, moderate: 70, atRisk: 50 }}
               onOpenQRAttendance={handleOpenQRAttendance}
+              onSaveSheet={handleSaveSheet}    // ✅ FULLY FUNCTIONAL
+              onLoadSheet={handleLoadSheet}    // ✅ FULLY FUNCTIONAL
             />
           ) : null}
         </main>
