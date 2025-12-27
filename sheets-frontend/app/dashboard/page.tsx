@@ -658,13 +658,11 @@ export default function DashboardPage() {
               onAddStudent={handleAddStudent}
               onUpdateStudent={handleUpdateStudent}
               onDeleteStudent={handleDeleteStudent}
-              onToggleAttendance={() => {}}        // ✅ ADD
-              onAddColumn={() => {}}               // ✅ ADD  
-              onDeleteColumn={() => {}}            // ✅ ADD
-              defaultThresholds={{}}              // ✅ ADD
+              onToggleAttendance={() => {}}
+              onAddColumn={() => {}}
+              onDeleteColumn={() => {}}
+              defaultThresholds={{ excellent: 95, good: 90, moderate: 85, atRisk: 85 }}  // ✅ Safe defaults
               onOpenQRAttendance={handleOpenQRAttendance}
-              onSaveSheet={handleSaveSheet}       // ✅ GUESS - adjust if different
-              onLoadSheet={handleLoadSheet}       // ✅ GUESS - adjust if different
             />
           ) : null}
         </main>
