@@ -1,9 +1,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, Float
-from sqlalchemy.ext.declarative import declarative_base
+from database import Base  # ✅ Import Base from database.py
 from sqlalchemy.orm import relationship
 from datetime import datetime
-
-Base = declarative_base()
 
 class Teacher(Base):
     __tablename__ = "teachers"
@@ -66,7 +64,7 @@ class Enrollment(Base):
     unenrolled_at = Column(DateTime, nullable=True)
     re_enrolled_at = Column(DateTime, nullable=True)
     removed_by_teacher_at = Column(DateTime, nullable=True)
-    status = Column(String, default="active")  # active, inactive
+    status = Column(String, default="active")
     
     # Relationships
     student = relationship("Student", back_populates="enrollments")
@@ -76,12 +74,12 @@ class Enrollment(Base):
 class StudentRecord(Base):
     __tablename__ = "student_records"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)  # This is student_record_id
+    id = Column(Integer, primary_key=True, autoincrement=True)
     class_id = Column(String, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     roll_no = Column(String, nullable=False)
     email = Column(String, nullable=False)
-    attendance = Column(JSON, default=dict)  # {"2025-01-15": "P", "2025-01-16": "A"}
+    attendance = Column(JSON, default=dict)
     
     # Relationships
     class_obj = relationship("Class", back_populates="student_records")
@@ -98,8 +96,8 @@ class QRSession(Base):
     stopped_at = Column(DateTime, nullable=True)
     code_generated_at = Column(DateTime, default=datetime.utcnow)
     rotation_interval = Column(Integer, default=5)
-    scanned_students = Column(JSON, default=list)  # List of student_record_ids
-    status = Column(String, default="active")  # active, stopped
+    scanned_students = Column(JSON, default=list)
+    status = Column(String, default="active")
     
     # Relationships
     class_obj = relationship("Class", back_populates="qr_sessions")
