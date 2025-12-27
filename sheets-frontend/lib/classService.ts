@@ -1,8 +1,9 @@
 // lib/classService.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ✅ UNIFIED TYPES - Single source of truth
+
 export interface AttendanceCounts {
   P: number;
   A: number;
@@ -14,14 +15,14 @@ export interface Student {
   rollNo: string;
   name: string;
   email?: string;
-  attendance: Record<string, 'P' | 'A' | 'L'>;  // ✅ Specific values only
+  attendance: Record<string, "P" | "A" | "L" | undefined>;
   [key: string]: any;
 }
 
 export interface CustomColumn {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'select';
+  type: "text" | "number" | "select";
   options?: string[];
 }
 
@@ -40,7 +41,7 @@ export interface ClassStatistics {
 }
 
 export interface Class {
-  id: number;
+  id: string; // ✅ string on frontend
   name: string;
   students: Student[];
   customColumns: CustomColumn[];
@@ -51,16 +52,38 @@ export interface Class {
   updated_at?: string;
 }
 
+// ✅ Payload expected by FastAPI ClassRequest
+type ClassRequestPayload = {
+  id: number; // Pydantic ClassRequest.id: int
+  name: string;
+  students: {
+    id: number;
+    rollNo: string;
+    name: string;
+    email?: string;
+    attendance?: Record<string, "P" | "A" | "L" | undefined>;
+  }[];
+  customColumns: CustomColumn[];
+  thresholds?: AttendanceThresholds;
+};
+
 class ClassService {
   private getAuthHeaders(): Record<string, string> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accesstoken') : null;  // ✅ lowercase
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("accesstoken")
+        : null; // ✅ lowercase key
+
     return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
 
-  private async apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async apiCall<T = any>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
@@ -71,66 +94,111 @@ class ClassService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || error.message || `API Error: ${response.statusText}`);
+      throw new Error(
+        (error as any).detail ||
+          (error as any).message ||
+          `API Error: ${response.statusText}`
+      );
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   async getAllClasses(): Promise<Class[]> {
     try {
-      const result = await this.apiCall<{ classes: Class[] }>('/classes');
+      const result = await this.apiCall<{ classes: Class[] }>("/classes");
       return result.classes;
     } catch (error) {
-      console.error('Error fetching classes:', error);
+      console.error("Error fetching classes:", error);
       throw error;
     }
   }
 
   async getClass(classId: string): Promise<Class> {
     try {
-      const result = await this.apiCall<{ class: Class }>(`/classes/${classId}`);
+      const result = await this.apiCall<{ class: Class }>(
+        `/classes/${classId}`
+      );
       return result.class;
     } catch (error) {
-      console.error('Error fetching class:', error);
+      console.error("Error fetching class:", error);
       throw error;
     }
   }
 
   async createClass(classData: Class): Promise<Class> {
     try {
-      const result = await this.apiCall<{ success: boolean; class: Class }>('/classes', {
-        method: 'POST',
-        body: JSON.stringify(classData),
-      });
+      const payload: ClassRequestPayload = {
+        id: Number(classData.id),
+        name: classData.name,
+        students: classData.students.map((s) => ({
+          id: s.id,
+          rollNo: s.rollNo,
+          name: s.name,
+          email: s.email,
+          attendance: s.attendance,
+        })),
+        customColumns: classData.customColumns,
+        thresholds: classData.thresholds,
+      };
+
+      const result = await this.apiCall<{ success: boolean; class: Class }>(
+        "/classes",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+
       return result.class;
     } catch (error) {
-      console.error('Error creating class:', error);
+      console.error("Error creating class:", error);
       throw error;
     }
   }
 
   async updateClass(classId: string, classData: Class): Promise<Class> {
     try {
-      const result = await this.apiCall<{ success: boolean; class: Class }>(`/classes/${classId}`, {
-        method: 'PUT',
-        body: JSON.stringify(classData),
-      });
+      const payload: ClassRequestPayload = {
+        id: Number(classData.id),
+        name: classData.name,
+        students: classData.students.map((s) => ({
+          id: s.id,
+          rollNo: s.rollNo,
+          name: s.name,
+          email: s.email,
+          attendance: s.attendance,
+        })),
+        customColumns: classData.customColumns,
+        thresholds: classData.thresholds,
+      };
+
+      const result = await this.apiCall<{ success: boolean; class: Class }>(
+        `/classes/${classId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        }
+      );
+
       return result.class;
     } catch (error) {
-      console.error('Error updating class:', error);
+      console.error("Error updating class:", error);
       throw error;
     }
   }
 
   async deleteClass(classId: string): Promise<boolean> {
     try {
-      const result = await this.apiCall<{ success: boolean; message: string }>(`/classes/${classId}`, {
-        method: 'DELETE',
-      });
+      const result = await this.apiCall<{ success: boolean; message: string }>(
+        `/classes/${classId}`,
+        {
+          method: "DELETE",
+        }
+      );
       return result.success;
     } catch (error) {
-      console.error('Error deleting class:', error);
+      console.error("Error deleting class:", error);
       throw error;
     }
   }
@@ -138,7 +206,7 @@ class ClassService {
   async syncClasses(localClasses: Class[]): Promise<Class[]> {
     try {
       const backendClasses = await this.getAllClasses();
-      const backendClassIds = new Set(backendClasses.map(c => c.id));
+      const backendClassIds = new Set(backendClasses.map((c) => c.id));
 
       for (const localClass of localClasses) {
         if (!backendClassIds.has(localClass.id)) {
@@ -150,7 +218,7 @@ class ClassService {
 
       return await this.getAllClasses();
     } catch (error) {
-      console.error('Error syncing classes:', error);
+      console.error("Error syncing classes:", error);
       throw error;
     }
   }
@@ -159,7 +227,7 @@ class ClassService {
     try {
       return await this.getAllClasses();
     } catch (error) {
-      console.error('Error loading classes:', error);
+      console.error("Error loading classes:", error);
       return [];
     }
   }
