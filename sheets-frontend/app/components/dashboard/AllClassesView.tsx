@@ -19,7 +19,7 @@ interface Student {
 }
 
 interface Class {
-  id: number;
+  id: string;
   name: string;
   students: Student[];
   customColumns: CustomColumn[];
@@ -36,7 +36,7 @@ interface AttendanceThresholds {
 interface AllClassesViewProps {
   classes: Class[];
   onBack: () => void;
-  onClassSelect: (id: number) => void;
+  onClassSelect: (id: string) => void;
   currentMonth: number;
   currentYear: number;
   defaultThresholds: AttendanceThresholds;
