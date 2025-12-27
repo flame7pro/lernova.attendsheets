@@ -28,7 +28,7 @@ export interface AttendanceThresholds {
 }
 
 export interface Class {
-  id: number;
+  id: string;
   name: string;
   students: Student[];
   customColumns: CustomColumn[];
