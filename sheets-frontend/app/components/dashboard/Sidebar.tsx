@@ -39,20 +39,22 @@ interface Class {
 
 interface SidebarProps {
   collapsed: boolean;
+  onToggleCollapsed: () => void;  // ✅ ADD THIS LINE
   classes: Class[];
-  activeClassId: string | null;                    // ✅ was number | null
-  onClassSelect: (id: string) => void;             // ✅ was (id: number)
+  activeClassId: string | null;  // ✅ Also fix: change from number to string
+  onClassSelect: (id: string) => void;  // ✅ Also fix: change from number to string
   onAddClass: () => void;
-  onDeleteClass: (id: string, e: React.MouseEvent) => void; // ✅ id: string
+  onDeleteClass: (id: string, e: React.MouseEvent<HTMLButtonElement>) => void;  // ✅ Fix: string
   onViewAllClasses: () => void;
   onViewSnapshot: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
-  onUpdateClassName: (id: string, newName: string) => void; // ✅ id: string
+  onUpdateClassName: (id: string, newName: string) => void;  // ✅ Fix: string
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
+  onToggleCollapsed,  // ✅ ADD THIS LINE
   classes,
   activeClassId,
   onClassSelect,
