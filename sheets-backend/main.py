@@ -217,6 +217,22 @@ async def view_classes(db: AsyncSession = Depends(get_db)):
         ]
     }
 
+    @app.get("/debug/view-classes-raw")
+    async def debug_view_classes_raw(db: AsyncSession = Depends(get_db)):
+        result = await db.execute(select(Class))
+        classes = result.scalars().all()
+        return {
+            "count": len(classes),
+            "classes": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "teacher_id": c.teacher_id,
+                }
+                for c in classes
+            ],
+        }
+
 @app.get("/debug/view-class-details/{class_id}")
 async def view_class_details(class_id: str, db: AsyncSession = Depends(get_db)):
     """View COMPLETE details of a specific class including ALL student data and attendance"""
