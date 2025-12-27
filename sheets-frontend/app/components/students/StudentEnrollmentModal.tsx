@@ -84,12 +84,19 @@ export const StudentEnrollmentModal: React.FC<EnrollmentModalProps> = ({
       setError('Please enter your roll number');
       return;
     }
-
+  
     setLoading(true);
     setError('');
-
+  
     try {
-      const token = localStorage.getItem('accessToken');
+      // ✅ FIX #1: Use correct token key (lowercase 't')
+      const token = localStorage.getItem('accesstoken');
+      
+      if (!token) {
+        setError('Session expired. Please log in again.');
+        return;
+      }
+  
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/student/enroll`,
         {
@@ -99,16 +106,16 @@ export const StudentEnrollmentModal: React.FC<EnrollmentModalProps> = ({
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            class_id: classId,
+            classid: classId,  // ✅ FIX #2: Remove underscore!
             name: studentName,
             rollNo: rollNo.trim(),
             email: studentEmail
           })
         }
       );
-
+  
       const data = await response.json();
-
+  
       if (response.ok) {
         // Success - reset and close
         onSuccess();
@@ -119,7 +126,7 @@ export const StudentEnrollmentModal: React.FC<EnrollmentModalProps> = ({
         setError('');
       } else {
         const errorMessage = parseErrorMessage(data);
-
+  
         // Provide more helpful error messages
         if (errorMessage.includes('already enrolled')) {
           setError('You are already enrolled in this class. Check your dashboard.');
@@ -127,6 +134,9 @@ export const StudentEnrollmentModal: React.FC<EnrollmentModalProps> = ({
           setError('Class not found. The teacher may have deleted it.');
         } else if (errorMessage.includes('must use your registered email')) {
           setError('Security error: Email mismatch. Please contact support.');
+        } else if (errorMessage.includes('Could not validate credentials') || 
+                   errorMessage.includes('Unauthorized')) {
+          setError('Session expired. Please log out and log in again.');
         } else {
           setError(errorMessage || 'Failed to enroll. Please try again.');
         }
