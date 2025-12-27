@@ -148,6 +148,269 @@ async def debug_create_tables():
         traceback.print_exc()
         return {"success": False, "error": str(e)}
 
+@app.get("/debug/view-teachers")
+async def view_teachers(db: AsyncSession = Depends(get_db)):
+    """View all teachers in database"""
+    result = await db.execute(select(Teacher))
+    teachers = result.scalars().all()
+    
+    return {
+        "count": len(teachers),
+        "teachers": [
+            {
+                "id": t.id,
+                "email": t.email,
+                "name": t.name,
+                "verified": t.verified,
+                "role": t.role,
+                "total_classes": t.total_classes,
+                "total_students": t.total_students,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None
+            }
+            for t in teachers
+        ]
+    }
+
+@app.get("/debug/view-students")
+async def view_students(db: AsyncSession = Depends(get_db)):
+    """View all students in database"""
+    result = await db.execute(select(Student))
+    students = result.scalars().all()
+    
+    return {
+        "count": len(students),
+        "students": [
+            {
+                "id": s.id,
+                "email": s.email,
+                "name": s.name,
+                "verified": s.verified,
+                "role": s.role,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None
+            }
+            for s in students
+        ]
+    }
+
+@app.get("/debug/view-classes")
+async def view_classes(db: AsyncSession = Depends(get_db)):
+    """View all classes in database"""
+    result = await db.execute(select(Class).options(selectinload(Class.student_records)))
+    classes = result.scalars().all()
+    
+    return {
+        "count": len(classes),
+        "classes": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "teacher_id": c.teacher_id,
+                "custom_columns": c.custom_columns,
+                "thresholds": c.thresholds,
+                "student_count": len(c.student_records),
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None
+            }
+            for c in classes
+        ]
+    }
+
+@app.get("/debug/view-class-details/{class_id}")
+async def view_class_details(class_id: str, db: AsyncSession = Depends(get_db)):
+    """View COMPLETE details of a specific class including ALL student data and attendance"""
+    result = await db.execute(
+        select(Class)
+        .where(Class.id == class_id)
+        .options(selectinload(Class.student_records))
+    )
+    cls = result.scalar_one_or_none()
+    
+    if not cls:
+        return {"error": "Class not found"}
+    
+    return {
+        "class_id": cls.id,
+        "name": cls.name,
+        "teacher_id": cls.teacher_id,
+        "custom_columns": cls.custom_columns,
+        "thresholds": cls.thresholds,
+        "created_at": cls.created_at.isoformat() if cls.created_at else None,
+        "updated_at": cls.updated_at.isoformat() if cls.updated_at else None,
+        "students": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "roll_no": s.roll_no,
+                "email": s.email,
+                "attendance": s.attendance  # Full attendance JSON
+            }
+            for s in cls.student_records
+        ]
+    }
+
+@app.get("/debug/view-enrollments")
+async def view_enrollments(db: AsyncSession = Depends(get_db)):
+    """View all enrollments in database"""
+    result = await db.execute(select(Enrollment))
+    enrollments = result.scalars().all()
+    
+    return {
+        "count": len(enrollments),
+        "enrollments": [
+            {
+                "id": e.id,
+                "student_id": e.student_id,
+                "class_id": e.class_id,
+                "student_record_id": e.student_record_id,
+                "roll_no": e.roll_no,
+                "status": e.status,
+                "enrolled_at": e.enrolled_at.isoformat() if e.enrolled_at else None,
+                "unenrolled_at": e.unenrolled_at.isoformat() if e.unenrolled_at else None,
+                "re_enrolled_at": e.re_enrolled_at.isoformat() if e.re_enrolled_at else None,
+                "removed_by_teacher_at": e.removed_by_teacher_at.isoformat() if e.removed_by_teacher_at else None
+            }
+            for e in enrollments
+        ]
+    }
+
+@app.get("/debug/view-student-records")
+async def view_student_records(db: AsyncSession = Depends(get_db)):
+    """View all student records (the actual student data in classes)"""
+    result = await db.execute(select(StudentRecord))
+    records = result.scalars().all()
+    
+    return {
+        "count": len(records),
+        "student_records": [
+            {
+                "id": sr.id,
+                "class_id": sr.class_id,
+                "name": sr.name,
+                "roll_no": sr.roll_no,
+                "email": sr.email,
+                "attendance": sr.attendance,
+                "total_days": len(sr.attendance) if sr.attendance else 0
+            }
+            for sr in records
+        ]
+    }
+
+@app.get("/debug/view-qr-sessions")
+async def view_qr_sessions(db: AsyncSession = Depends(get_db)):
+    """View all QR code sessions"""
+    result = await db.execute(select(QRSession))
+    sessions = result.scalars().all()
+    
+    return {
+        "count": len(sessions),
+        "qr_sessions": [
+            {
+                "id": qs.id,
+                "class_id": qs.class_id,
+                "teacher_id": qs.teacher_id,
+                "current_code": qs.current_code,
+                "attendance_date": qs.attendance_date,
+                "status": qs.status,
+                "rotation_interval": qs.rotation_interval,
+                "scanned_students": qs.scanned_students,
+                "scanned_count": len(qs.scanned_students) if qs.scanned_students else 0,
+                "started_at": qs.started_at.isoformat() if qs.started_at else None,
+                "stopped_at": qs.stopped_at.isoformat() if qs.stopped_at else None,
+                "code_generated_at": qs.code_generated_at.isoformat() if qs.code_generated_at else None
+            }
+            for qs in sessions
+        ]
+    }
+
+@app.get("/debug/view-contact-messages")
+async def view_contact_messages(db: AsyncSession = Depends(get_db)):
+    """View all contact form submissions"""
+    result = await db.execute(select(ContactMessage))
+    messages = result.scalars().all()
+    
+    return {
+        "count": len(messages),
+        "messages": [
+            {
+                "id": m.id,
+                "name": m.name,
+                "email": m.email,
+                "subject": m.subject,
+                "message": m.message,
+                "created_at": m.created_at.isoformat() if m.created_at else None
+            }
+            for m in messages
+        ]
+    }
+
+@app.get("/debug/database-summary")
+async def database_summary(db: AsyncSession = Depends(get_db)):
+    """Get a complete summary of all data in the database"""
+    
+    # Count all records
+    teachers_result = await db.execute(select(func.count(Teacher.id)))
+    students_result = await db.execute(select(func.count(Student.id)))
+    classes_result = await db.execute(select(func.count(Class.id)))
+    enrollments_result = await db.execute(select(func.count(Enrollment.id)))
+    records_result = await db.execute(select(func.count(StudentRecord.id)))
+    qr_result = await db.execute(select(func.count(QRSession.id)))
+    messages_result = await db.execute(select(func.count(ContactMessage.id)))
+    
+    return {
+        "database": "lernova-db",
+        "summary": {
+            "teachers": teachers_result.scalar(),
+            "students": students_result.scalar(),
+            "classes": classes_result.scalar(),
+            "enrollments": enrollments_result.scalar(),
+            "student_records": records_result.scalar(),
+            "qr_sessions": qr_result.scalar(),
+            "contact_messages": messages_result.scalar()
+        },
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/debug/search-by-email/{email}")
+async def search_by_email(email: str, db: AsyncSession = Depends(get_db)):
+    """Search for a user (teacher or student) by email"""
+    
+    # Search teachers
+    teacher_result = await db.execute(select(Teacher).where(Teacher.email == email))
+    teacher = teacher_result.scalar_one_or_none()
+    
+    # Search students
+    student_result = await db.execute(select(Student).where(Student.email == email))
+    student = student_result.scalar_one_or_none()
+    
+    response = {"email": email, "found": False}
+    
+    if teacher:
+        response["found"] = True
+        response["type"] = "teacher"
+        response["data"] = {
+            "id": teacher.id,
+            "name": teacher.name,
+            "email": teacher.email,
+            "verified": teacher.verified,
+            "total_classes": teacher.total_classes,
+            "total_students": teacher.total_students,
+            "created_at": teacher.created_at.isoformat() if teacher.created_at else None
+        }
+    elif student:
+        response["found"] = True
+        response["type"] = "student"
+        response["data"] = {
+            "id": student.id,
+            "name": student.name,
+            "email": student.email,
+            "verified": student.verified,
+            "created_at": student.created_at.isoformat() if student.created_at else None
+        }
+    
+    return response
+
 # ==================== HELPER FUNCTIONS ====================
 
 def get_password_hash(password: str) -> str:
