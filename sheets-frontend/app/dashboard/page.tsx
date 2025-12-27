@@ -651,19 +651,14 @@ export default function DashboardPage() {
             />
           ) : activeClass ? (
             <AttendanceSheet
+              activeClass={activeClass}  // ✅ ADD THIS LINE
               cls={activeClass}
               currentMonth={currentMonth}
               currentYear={currentYear}
               onAddStudent={handleAddStudent}
               onUpdateStudent={handleUpdateStudent}
               onDeleteStudent={handleDeleteStudent}
-              onToggleAttendance={handleToggleAttendance}
-              onAddColumn={() => setShowAddColumnModal(true)}
-              onDeleteColumn={handleDeleteColumn}
-              defaultThresholds={defaultThresholds}
-              onOpenSettings={() => handleOpenClassSettings(activeClass.id)}
-              onUpdateClassName={newName => handleUpdateClassName(activeClass.id, newName)}
-              onOpenQRAttendance={() => setShowQRModal(true)}
+              onOpenQRAttendance={handleOpenQRAttendance}
             />
           ) : null}
         </main>
