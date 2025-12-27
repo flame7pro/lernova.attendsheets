@@ -1,55 +1,24 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Calendar, Users, TrendingUp, AlertCircle, Award, BarChart3, Settings, GraduationCap } from 'lucide-react';
-
-interface Class {
-  id: number;
-  name: string;
-  students: Student[];
-  customColumns: CustomColumn[];
-  thresholds?: AttendanceThresholds;
-}
-
-interface Student {
-  id: number;
-  rollNo: string;
-  name: string;
-  attendance: Record<string, 'P' | 'A' | 'L' | undefined>;
-  [key: string]: any;
-}
-
-interface CustomColumn {
-  id: string;
-  label: string;
-  type: 'text' | 'number' | 'select';
-  options?: string[];
-}
-
-interface AttendanceThresholds {
-  excellent: number;
-  good: number;
-  moderate: number;
-  atRisk: number;
-}
+import { Class, Student, CustomColumn, AttendanceThresholds } from '@/types';
 
 interface SnapshotViewProps {
   classes: Class[];
   currentMonth: number;
   currentYear: number;
-  onClassSelect: (id: number) => void;
   defaultThresholds: AttendanceThresholds;
-  onOpenClassSettings: (classId: number) => void;
 }
 
 export const SnapshotView: React.FC<SnapshotViewProps> = ({
   classes,
   currentMonth,
   currentYear,
-  onClassSelect,
   defaultThresholds,
-  onOpenClassSettings,
 }) => {
+  const router = useRouter()
   const getDaysInMonth = (month: number, year: number) => 
     new Date(year, month + 1, 0).getDate();
   
@@ -276,7 +245,7 @@ export const SnapshotView: React.FC<SnapshotViewProps> = ({
                     </div>
                   </div>
                   <button
-                    onClick={() => onClassSelect(cls.id)}
+                    onClick={() => router.push(`/dashboard/class/${cls.id}`)}
                     className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold rounded-lg hover:shadow-md transition-all cursor-pointer"
                   >
                     View Details
